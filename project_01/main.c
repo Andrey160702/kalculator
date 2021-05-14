@@ -1,173 +1,235 @@
-//   Инструкция по применению (работаем с файлом input.txt):
-// 1)Вводим режим работы калькулятора (c/v)
-// 2)Если мы выбрали режим работы с числами (c), то сначала вводим первое число, затем через пробел вводим операцию
-//   Если операция подразумевает работу с двумя числами, то через пробел вводим второе число, затем запускаем программу и заходим в output.txt
-//   Если операция подразумевает работу с одним числом, то после того, как ввели операцию, запускаем программ и заходим в output.txt
-//   Пример ввода: "c 2 + 2" либо "c 3 !"
-// 3)Если мы выбрали режим работы с векторами (v), то сначала вводим размер вектора, затем через пробел вводим первый вектор,
-//   далее через пробел вводим второй вектор,а затем через пробел вводим операцию и запускаем программу. Далее заходим в output.txt
-//   Пример ввода: "v 2 1 1 2 2 +"
-//
-// Блок 1: подключаем библиотеки ("math" необходима для возведения в степень и извлечения корня)
+// Формат ввода: знак, s или v, количество координат векторов, данные.
+// пример входных данных для работы с числами: + s 4.6 -5
+// пример входных данных для работы с векторами: - v 5 4 -1 0,4 8 112 6
+// Блок 1:подключаем библиотеки
 #include <stdio.h>
-#include <math.h>
 #include <stdlib.h>
 //
-int main(int argc, char *agrv[]) {
-	setvbuf(stdout, NULL, _IONBF, 0);
-	setvbuf(stderr, NULL, _IONBF, 0);
-// Блок 2: объявляем переменные
-	float a, b, res, step, rez;
-	float *x, *y;
-	char oper, choose, operv;
-	long int fak = 1;
+// Блок 2:организовываем список для входных данных
+struct list1 {
+	char sign, choose;
 	int size;
+	float *x, *y;
+	struct list1 *next;
+};
 //
+// Блок 3:организовываем список для выходных данных
+struct list2 {
+	float *res;
+	struct list2 *res_next;
+};
+//
+float* numb(char sign, float *x, float *y);
+float* vect(char sign, int size, float *a, float *b);
+float* add_numb(FILE *input, int size);
+void add_el(struct list1 *current, FILE *input);
+void res_add_el(struct list2 *res_current, struct list1 *current);
+int main() {
+	char n = 'y';
+	char in[20], out[20];
 	FILE *input, *output;
-	input = fopen("input.txt", "r");
-	output = fopen("output.txt", "w");
-
-//Блок 3: выбираем режим работы калькулятора
-	printf(
-			"Выберите режим калькулятора (c - работа с числами, v - работа с векторами)\n");
-	fscanf(input, "%s", &choose);
-//
-	switch (choose) {
-	case 'c':
-		printf("Активирован режим работы с числами\n");
-// Блок 4: вводим первое число и арифметическую операцию. Так же вводим второе число/степень, если того требует операция
-		printf("Введите первое число\n");
-		fscanf(input, "%f", &a);
-		printf("Введите одну из доступных операций (+,-,*,/,!,#(корень),^)\n");
-		fscanf(input, " %c", &oper);
-		if (oper == '+' || oper == '-' || oper == '*' || oper == '/') {
-			printf("Введите второе число\n");
-			fscanf(input, "%f", &b);
-		} else if (oper == '^') {
-			printf("Введите степень, в которую хотите возвести число\n");
-			fscanf(input, "%f", &step);
-		}
-//
-// Блок 5: вычисления в режиме работы с числами
-		switch (oper) {
-		case '+':
-			res = a + b;
-			fprintf(output, "%f + %f = %f\n", a, b, res);
-			break;
-		case '-':
-			res = a - b;
-			fprintf(output, "%f - %f = %f\n", a, b, res);
-			break;
-		case '*':
-			res = a * b;
-			fprintf(output, "%f * %f = %f\n", a, b, res);
-			break;
-		case '/':
-			if (b == 0) {
-				fprintf(output,
-						"Делить на 0 нельзя, введите второе число еще раз: ");
-				fscanf(input, "%f", &b);
-				res = a / b;
-				fprintf(output, "%f / %f = %f\n", a, b, res);
+	struct list1 *head, *current; // указатели на начало списка и текущий элемент
+	struct list2 *head_res, *current_res;
+	while (n == 'y') {
+		printf("\nInput file name: ");
+		scanf("%s", in);
+		printf("Output file name: ");
+		scanf("%s", out);
+		input = fopen(in, "r");
+		if (feof(input) == 0) {
+			head = malloc(sizeof(struct list1)); // память для первого элемента списка
+			fscanf(input, " %c", &head->sign);
+			fscanf(input, " %c", &head->choose);
+			if (head->choose == 'v') {
+				fscanf(input, " %i", &head->size);
 			} else {
-				res = a / b;
-				fprintf(output, "%f / %f = %f\n", a, b, res);
+				head->size = 1;
 			}
-			break;
-		case '!':
-			if (a == 0)
-				fprintf(output, "Факториал числа %f = 1\n", a);
-			else if (a == 1)
-				fprintf(output, "Факториал числа %f = 1\n", a);
-			else {
-				for (float i = 1; i <= a; i++) {
-					fak = fak * i;
-				}
-				fprintf(output, "Факториал числа %f = %li\n", a, fak);
+			if (head->sign != '!') {
+				head->x = add_numb(input, head->size);
+				head->y = add_numb(input, head->size);
+			} else {
+				head->x = add_numb(input, head->size);
+				head->y = NULL;
 			}
-			break;
-		case '^':
-			if (step == 0)
-				fprintf(output, "1\n");
-			else {
-				fprintf(output, "%0.5f\n", pow(a, step));
-			}
-			break;
-		case '#':
-			if (a < 0)
-				fprintf(output,
-						"корень из отрицательного числа извлекать нельзя\n");
-			else
-				fprintf(output, "%.5f\n", sqrt(a));
-			break;
-		default:
-			fprintf(output, "Неизвестная операция\n");
-		}
-		break;
-//
-	case 'v':
-		printf("Активирован режим работы с векторами\n");
-// Блок 6: Вводим размер векторов, сами вектора и доступную операцию
-		printf("Введите размер векторов\n");
-		fscanf(input, "%i", &size);
-		x = malloc(size * sizeof(float));
-		y = malloc(size * sizeof(float));
-		printf("Введите вектор x\n");
-		for (int i = 0; i < size; i++)
-			fscanf(input, "%f", &x[i]);
-		printf("Введите вектор y\n");
-		for (int i = 0; i < size; i++)
-			fscanf(input, "%f", &y[i]);
-		printf(
-				"Введите одну из доступных операций (+,-,*(скалярное произведение))");
-		fscanf(input, "%s", &operv);
-//
-		switch (operv)
-// Блок 7: вычисления в режиме работы с векторами
-		{
-		case '+':
-			fprintf(output, "( ");
-			for (int i = 0; i < size; i++)
-				fprintf(output, "%.2f ", x[i]);
-			fprintf(output, ") + ( ");
-			for (int i = 0; i < size; i++)
-				fprintf(output, "%.2f ", y[i]);
-			fprintf(output, ") = ( ");
-			for (int i = 0; i < size; i++)
-				fprintf(output, "%.2f ", x[i] + y[i]);
-			fprintf(output, ")\n");
-			break;
+			current = head;
 
-		case '-':
-			fprintf(output, "( ");
-			for (int i = 0; i < size; i++)
-				fprintf(output, "%.2f ", x[i]);
-			fprintf(output, ") - ( ");
-			for (int i = 0; i < size; i++)
-				fprintf(output, "%.2f ", y[i]);
-			fprintf(output, ") = ( ");
-			for (int i = 0; i < size; i++)
-				fprintf(output, "%.2f ", x[i] - y[i]);
-			fprintf(output, ")\n");
-			break;
-		case '*':
-			fprintf(output, "( ");
-			for (int i = 0; i < size; i++)
-				fprintf(output, "%.2f ", x[i]);
-			fprintf(output, ") * ( ");
-			for (int i = 0; i < size; i++)
-				fprintf(output, "%.2f ", y[i]);
-			fprintf(output, ") = ");
-			for (int i = 0; i < size; i++)
-				rez += x[i] * y[i];
-			fprintf(output, "%.2f \n", rez);
-			break;
-		default:
-			fprintf(output, "Неизвестная операция\n");
+			while (feof(input) == 0) { // добавление элементов списка, пока не закончится файл
+				add_el(current, input);
+				current = current->next;
+
+			}
+			head_res = malloc(sizeof(struct list2)); // память для первого элемента списка для вывода
+			current = head;
+			if (current->choose == 'v') {
+				head_res->res = vect(current->sign, current->size, current->x,
+						current->y);
+			} else {
+				head_res->res = numb(current->sign, current->x, current->y);
+			}
+			head_res->res_next = NULL;
+			current = current->next;
+			current_res = head_res;
+			while (current != NULL) {       // пока элемент списка не последниий
+				res_add_el(current_res, current);
+				// переустановка указателей на следующий элемент
+				current = current->next;
+				current_res = current_res->res_next;
+			}
+			current = head;
+			current_res = head_res;
+			fclose(input);
+			output = fopen(out, "w");
+			while (current != NULL) 			//запись ответа в файл "output"
+			{
+				if (current->choose == 'v') {
+					fprintf(output, "(");
+					for (int i = 0; i < current->size; i++) {
+						fprintf(output, " %.2f", current->x[i]);
+					}
+					fprintf(output, ") %c (", current->sign);
+					for (int i = 0; i < current->size; i++) {
+						fprintf(output, " %.2f", current->y[i]);
+					}
+					fprintf(output, " ) = ");
+					if (current->sign != '*') {
+						fprintf(output, "( ");
+						for (int i = 0; i < current->size; i++) {
+							fprintf(output, "%.2f ", current_res->res[i]);
+						}
+						fprintf(output, ")\n");
+					} else {
+						fprintf(output, "%.2f\n", current_res->res[0]);
+					}
+				} else if (current->choose == 's') {
+					fprintf(output, " %.2f %c %.2f = %.2f\n", current->x[0],
+							current->y[0], current->sign, current_res->res[0]);
+				}
+				current = current->next;
+				current_res = current_res->res_next;
+			}
+			fclose(output);
 		}
-//
+		printf("do you want to continue? (y/n)");
+		scanf("%s", &n);
 	}
-	fclose(input);
-	fclose(output);
 	return 0;
+}
+
+// функция для операций с числами
+float* numb(char sign, float *x, float *y) {
+	float f, S, *res_numb;
+	res_numb = malloc(sizeof(float));
+	switch (sign) {
+	case '+':
+		res_numb[0] = x[0] + y[0];
+		return res_numb;
+	case '-':
+		res_numb[0] = x[0] - y[0];
+		return res_numb;
+	case '*':
+		res_numb[0] = x[0] * y[0];
+		return res_numb;
+	case '/':
+		if (y != 0) {
+			res_numb[0] = x[0] / y[0];
+			return res_numb;
+		} else {
+			return 0;
+		}
+	case '!':
+		f = 1;
+		for (int i = 1; i <= x[0]; i++) {
+			f *= i;
+		}
+		res_numb[0] = f;
+		return res_numb;
+	case '^':
+		f = 1;
+		S = 1;
+		for (int i = 1; i <= y[0]; i++) {
+			S *= x[0];
+		}
+		res_numb[0] = S;
+		return res_numb;
+	}
+	return x;
+	return y;
+	free(x);
+	free(y);
+	free(res_numb);
+}
+
+// функция для операций с векторами
+float* vect(char sign, int size, float *a, float *b) {
+	float *res_vect;
+	switch (sign) {
+	case '+':
+		res_vect = malloc(size * sizeof(float));
+		for (int i = 0; i < size; i++) {
+			res_vect[i] = a[i] + b[i];
+		}
+		return res_vect;
+	case '-':
+		res_vect = malloc(size * sizeof(float));
+		for (int i = 0; i < size; i++) {
+			res_vect[i] = a[i] - b[i];
+		}
+		return res_vect;
+	case '*':
+		res_vect = malloc(sizeof(float));
+		res_vect[0] = 0;
+		for (int i = 0; i < size; i++) {
+			res_vect[0] += a[i] * b[i];
+		}
+		return res_vect;
+	}
+	return a;
+	return b;
+	free(a);
+	free(b);
+	free(res_vect);
+}
+
+// считывание указателей, добавление чисел
+float* add_numb(FILE *input, int size) {
+	float *numb;
+	numb = malloc(size * sizeof(float));
+	for (int i = 0; i < size; i++) {
+		fscanf(input, "%f", &numb[i]);
+	}
+	return numb;
+}
+
+// добавление элемента списка для входных данных
+void add_el(struct list1 *current, FILE *input) {
+	struct list1 *z = malloc(sizeof(struct list1));
+	fscanf(input, " %c", &z->sign);
+	fscanf(input, " %c", &z->choose);
+	if (z->choose == 'v') {
+		fscanf(input, " %i", &z->size);
+	} else {
+		z->size = 1;
+	}
+	if (z->sign != '!') {
+		z->x = add_numb(input, z->size);
+		z->y = add_numb(input, z->size);
+	} else {
+		z->x = add_numb(input, z->size);
+		z->y = NULL;
+	}
+	z->next = NULL;    // последний элемент списка
+	current->next = z; // переустановка указателя
+}
+
+// добавление элемента списка для выходных данных
+void res_add_el(struct list2 *res_current, struct list1 *current) {
+	struct list2 *z_res = malloc(sizeof(struct list1));
+	if (current->choose == 'v') {
+		z_res->res = vect(current->sign, current->size, current->x, current->y);
+	} else {
+		z_res->res = numb(current->sign, current->x, current->y);
+	}
+	z_res->res_next = NULL;
+	res_current->res_next = z_res;
 }
